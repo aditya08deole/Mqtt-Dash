@@ -180,8 +180,8 @@
         const MQTT_TOPIC_STATUS = `${MQTT_USERNAME_FOR_TOPICS}/feeds/esp32-status`;
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
         // --- Faster Timings for a more "Dynamic" Feel ---
-        const STATUS_POLL_INTERVAL_MS = 5000;   // Check for status every 5 seconds
-        const DISCONNECT_TIMEOUT_MS = 10000;  // Consider ESP32 disconnected after 10 seconds
+        const STATUS_POLL_INTERVAL_MS = 1000;   // Check for status every 5 seconds
+        const DISCONNECT_TIMEOUT_MS = 2000;  // Consider ESP32 disconnected after 10 seconds
 
         // --- State ---
         let lastStatusTimestamp = 0;
