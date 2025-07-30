@@ -17,9 +17,10 @@
             --neon-green: #28a745;
             --neon-red: #dc3545;
             --neon-blue: #007bff;
-            --neon-pending: #ffc107; /* NEW: Color for pending state */
+            --neon-pending: #ffc107;
             --shadow-color: rgba(0, 0, 0, 0.05);
         }
+        /* ... All other CSS is identical to the previous version ... */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
@@ -43,7 +44,6 @@
             margin-bottom: 25px; font-weight: 600; font-size: 1.4em;
             display: flex; align-items: center; justify-content: center; gap: 12px;
         }
-        .panel h2 svg { width: 24px; height: 24px; color: var(--text-light); }
         .btn {
             padding: 15px 25px; border: 2px solid transparent; border-radius: 12px;
             font-size: 16px; font-weight: 600; cursor: pointer;
@@ -97,46 +97,11 @@
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <h1>Remote Water Controller</h1>
-        <p>Water IoT SPCRC</p>
-    </div>
-
-    <div class="connection-status" id="connectionStatus">
-        <div class="connection-indicator disconnected" id="connectionIndicator"></div>
-        <span id="connectionText">Connecting...</span>
-    </div>
-
+    <div class="header"><h1>Remote Water Controller</h1><p>Water IoT SPCRC</p></div>
+    <div class="connection-status" id="connectionStatus"><div class="connection-indicator disconnected" id="connectionIndicator"></div><span id="connectionText">Connecting...</span></div>
     <div class="dashboard-container">
-        <div class="panel control-panel">
-            <h2>Motor Control</h2>
-            <div class="motor-indicator off" id="motorIndicator"></div>
-            <div class="button-group">
-                <button id="btnOn" class="btn btn-on" onclick="sendMqttCommand('on')">Power ON</button>
-                <button id="btnOff" class="btn btn-off" onclick="sendMqttCommand('off')">Power OFF</button>
-            </div>
-        </div>
-
-        <div class="panel status-panel">
-            <h2>Device Status</h2>
-            <div class="status-item">
-                <span class="status-label">Motor State</span>
-                <span class="status-value status-off" id="motorStatus">OFF</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">WiFi Signal</span>
-                <span class="status-value" id="wifiSignal">--</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Device Uptime</span>
-                <span class="status-value" id="uptime">--</span>
-            </div>
-             <div class="status-item">
-                <span class="status-label">Total ON Time</span>
-                <span class="status-value" id="totalOnTime">--</span>
-            </div>
-        </div>
+        <div class="panel control-panel"><h2>Motor Control</h2><div class="motor-indicator off" id="motorIndicator"></div><div class="button-group"><button id="btnOn" class="btn btn-on" onclick="sendMqttCommand('on')">Power ON</button><button id="btnOff" class="btn btn-off" onclick="sendMqttCommand('off')">Power OFF</button></div></div>
+        <div class="panel status-panel"><h2>Device Status</h2><div class="status-item"><span class="status-label">Motor State</span><span class="status-value status-off" id="motorStatus">OFF</span></div><div class="status-item"><span class="status-label">WiFi Signal</span><span class="status-value" id="wifiSignal">--</span></div><div class="status-item"><span class="status-label">Device Uptime</span><span class="status-value" id="uptime">--</span></div><div class="status-item"><span class="status-label">Total ON Time</span><span class="status-value" id="totalOnTime">--</span></div></div>
     </div>
 
     <script>
@@ -146,9 +111,10 @@
         const MQTT_TOPIC_HEARTBEAT = `${MQTT_USERNAME_FOR_TOPICS}/feeds/on-status`;
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
 
-        const HEARTBEAT_INTERVAL = 2000;
-        const DISCONNECT_TIMEOUT = 5000;
-        const FULL_STATUS_INTERVAL = 15000;
+        // NEW TIMINGS to match the ESP32's 6-second heartbeat cycle
+        const HEARTBEAT_INTERVAL = 3000;   // Poll for heartbeat every 3 seconds
+        const DISCONNECT_TIMEOUT = 7000;   // Timeout after 7 seconds of no heartbeat
+        const FULL_STATUS_INTERVAL = 6500; // Poll for full status every 6.5 seconds
 
         let lastHeartbeatTimestamp = 0;
         let isConnected = false;
@@ -170,15 +136,8 @@
             ui.motorIndicator.className = 'motor-indicator pending';
             ui.btnOn.disabled = true;
             ui.btnOff.disabled = true;
-            
             clearTimeout(pendingStateTimeout);
-            // IMPROVEMENT: If status isn't confirmed, re-enable buttons and fetch true status.
-            pendingStateTimeout = setTimeout(() => {
-                ui.btnOn.disabled = false;
-                ui.btnOff.disabled = false;
-                getDeviceStatus();
-            }, 5000);
-
+            pendingStateTimeout = setTimeout(() => getDeviceStatus(), 5000);
             try {
                 await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
@@ -207,15 +166,19 @@
 
         async function mainLoop() {
             try {
-                await fetch(MQTT_PROXY_ENDPOINT, {
+                const response = await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_HEARTBEAT })
                 });
-                lastHeartbeatTimestamp = Date.now();
-                if (!isConnected) {
-                    updateConnectionStatus(true);
-                    getDeviceStatus();
+                if (!response.ok) throw new Error('Heartbeat fetch failed');
+                const result = await response.json();
+                // Check that the value is "true" as expected
+                if (result.data.value === "true") {
+                    lastHeartbeatTimestamp = Date.now();
+                    if (!isConnected) {
+                        updateConnectionStatus(true);
+                    }
                 }
             } catch (error) { /* Let timeout handler catch it */ }
             
@@ -228,7 +191,9 @@
             isConnected = connected;
             ui.connectionIndicator.className = 'connection-indicator ' + (connected ? 'connected' : 'disconnected');
             ui.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
-            if (!connected) {
+            if (connected) {
+                getDeviceStatus(); // Get full status on initial connect
+            } else {
                 updateDashboardUI(null);
             }
         }
@@ -256,7 +221,7 @@
         }
 
         function formatSecondsToHMS(seconds) {
-            if (isNaN(seconds) || seconds < 0) return '--';
+            if (isNaN(seconds)) return '--';
             seconds = Math.floor(seconds);
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
