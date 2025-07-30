@@ -27,7 +27,6 @@
             min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; padding: 20px; color: var(--text-dark);
         }
-        /* ... [rest of the header, panel, button styles are the same] ... */
         .header { text-align: center; margin-bottom: 20px; }
         .header h1 { font-size: 2em; font-weight: 700; }
         .header p { color: var(--text-light); }
@@ -51,19 +50,15 @@
             text-transform: uppercase; letter-spacing: 1px;
             transition: all 0.2s ease;
         }
-        .btn:disabled { cursor: not-allowed; filter: grayscale(0.7); }
+        .btn:disabled { cursor: not-allowed; filter: grayscale(0.7); opacity: 0.6; }
         .btn-on {
             background: rgba(40, 167, 69, 0.1); border-color: var(--neon-green); color: var(--neon-green);
         }
-        .btn-on:hover { background: rgba(40, 167, 69, 0.2); box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); }
+        .btn-on:not(:disabled):hover { background: rgba(40, 167, 69, 0.2); box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); }
         .btn-off {
             background: rgba(220, 53, 69, 0.1); border-color: var(--neon-red); color: var(--neon-red);
         }
-        .btn-off:hover { background: rgba(220, 53, 69, 0.2); box-shadow: 0 0 15px rgba(220, 53, 69, 0.4); }
-        .btn-status {
-            background: rgba(0, 123, 255, 0.1); border-color: var(--neon-blue); color: var(--neon-blue);
-        }
-        .btn-status:hover { background: rgba(0, 123, 255, 0.2); box-shadow: 0 0 15px rgba(0, 123, 255, 0.4); }
+        .btn-off:not(:disabled):hover { background: rgba(220, 53, 69, 0.2); box-shadow: 0 0 15px rgba(220, 53, 69, 0.4); }
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
         .status-item {
             display: flex; justify-content: space-between; align-items: center;
@@ -89,8 +84,6 @@
         }
         .motor-indicator.on { background-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); }
         .motor-indicator.off { background-color: var(--neon-red); box-shadow: 0 0 20px var(--neon-red); }
-        
-        /* NEW: Pending state for Optimistic UI */
         .motor-indicator.pending {
             background-color: var(--neon-pending);
             box-shadow: 0 0 20px var(--neon-pending);
@@ -104,6 +97,7 @@
     </style>
 </head>
 <body>
+
     <div class="header">
         <h1>Remote Water Controller</h1>
         <p>Water IoT SPCRC</p>
@@ -146,7 +140,6 @@
     </div>
 
     <script>
-        // --- Configuration ---
         const MQTT_USERNAME_FOR_TOPICS = "ADI08";
         const MQTT_TOPIC_CONTROL = `${MQTT_USERNAME_FOR_TOPICS}/feeds/motor-control`;
         const MQTT_TOPIC_STATUS = `${MQTT_USERNAME_FOR_TOPICS}/feeds/esp32-status`;
@@ -155,13 +148,12 @@
 
         const HEARTBEAT_INTERVAL = 2000;
         const DISCONNECT_TIMEOUT = 5000;
+        const FULL_STATUS_INTERVAL = 15000;
 
-        // --- State ---
         let lastHeartbeatTimestamp = 0;
         let isConnected = false;
         let pendingStateTimeout;
 
-        // --- UI Element Cache ---
         const ui = {
             connectionIndicator: document.getElementById('connectionIndicator'),
             connectionText: document.getElementById('connectionText'),
@@ -174,18 +166,16 @@
             btnOff: document.getElementById('btnOff'),
         };
 
-        // --- Core Functions ---
         async function sendMqttCommand(command) {
-            // Optimistic UI: Immediately show a pending state
             ui.motorIndicator.className = 'motor-indicator pending';
             ui.btnOn.disabled = true;
             ui.btnOff.disabled = true;
             
-            // Set a timeout to revert from pending state if no confirmation is received
             clearTimeout(pendingStateTimeout);
+            // IMPROVEMENT: If status isn't confirmed, re-enable buttons and fetch true status.
             pendingStateTimeout = setTimeout(() => {
-                // If we're still in pending after 5s, something is wrong.
-                // Fetch the real status to get back in sync.
+                ui.btnOn.disabled = false;
+                ui.btnOff.disabled = false;
                 getDeviceStatus();
             }, 5000);
 
@@ -197,7 +187,6 @@
                 });
             } catch (error) {
                 console.error(`Error sending command: ${error.message}`);
-                // Revert UI on error
                 clearTimeout(pendingStateTimeout);
                 getDeviceStatus();
             }
@@ -228,9 +217,8 @@
                     updateConnectionStatus(true);
                     getDeviceStatus();
                 }
-            } catch (error) { /* Fail silently, let timeout handler catch it */ }
+            } catch (error) { /* Let timeout handler catch it */ }
             
-            // Timeout handler
             if (isConnected && (Date.now() - lastHeartbeatTimestamp > DISCONNECT_TIMEOUT)) {
                 updateConnectionStatus(false);
             }
@@ -241,17 +229,16 @@
             ui.connectionIndicator.className = 'connection-indicator ' + (connected ? 'connected' : 'disconnected');
             ui.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
             if (!connected) {
-                updateDashboardUI(null); // Reset UI to default disconnected state
+                updateDashboardUI(null);
             }
         }
 
         function updateDashboardUI(data) {
-            // Enable buttons again after an update
             ui.btnOn.disabled = false;
             ui.btnOff.disabled = false;
             clearTimeout(pendingStateTimeout);
 
-            if (!data) { // Handle disconnect case
+            if (!data) {
                 ui.motorIndicator.className = 'motor-indicator off';
                 ui.motorStatus.textContent = 'UNKNOWN';
                 ui.wifiSignal.textContent = '--';
@@ -277,11 +264,10 @@
             return `${h}h ${m}m ${s}s`;
         }
 
-        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            mainLoop(); // Initial run
-            setInterval(mainLoop, HEARTBEAT_INTERVAL); // Main heartbeat loop
-            setInterval(getDeviceStatus, 15000); // Poll for full status less frequently
+            mainLoop();
+            setInterval(mainLoop, HEARTBEAT_INTERVAL);
+            setInterval(getDeviceStatus, FULL_STATUS_INTERVAL);
         });
     </script>
 </body>
