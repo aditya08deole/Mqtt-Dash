@@ -17,6 +17,7 @@
             --neon-green: #28a745;
             --neon-red: #dc3545;
             --neon-blue: #007bff;
+            --neon-pending: #ffc107; /* NEW: Color for pending state */
             --shadow-color: rgba(0, 0, 0, 0.05);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,6 +27,7 @@
             min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; padding: 20px; color: var(--text-dark);
         }
+        /* ... [rest of the header, panel, button styles are the same] ... */
         .header { text-align: center; margin-bottom: 20px; }
         .header h1 { font-size: 2em; font-weight: 700; }
         .header p { color: var(--text-light); }
@@ -49,6 +51,7 @@
             text-transform: uppercase; letter-spacing: 1px;
             transition: all 0.2s ease;
         }
+        .btn:disabled { cursor: not-allowed; filter: grayscale(0.7); }
         .btn-on {
             background: rgba(40, 167, 69, 0.1); border-color: var(--neon-green); color: var(--neon-green);
         }
@@ -86,19 +89,21 @@
         }
         .motor-indicator.on { background-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); }
         .motor-indicator.off { background-color: var(--neon-red); box-shadow: 0 0 20px var(--neon-red); }
-
-        /* NEW: Animation for data updates */
-        .flash {
-            animation: flash-animation 0.7s ease-out;
+        
+        /* NEW: Pending state for Optimistic UI */
+        .motor-indicator.pending {
+            background-color: var(--neon-pending);
+            box-shadow: 0 0 20px var(--neon-pending);
+            animation: pulse-pending 1.5s infinite ease-in-out;
         }
-        @keyframes flash-animation {
-            0% { background-color: var(--neon-blue); color: white; }
-            100% { background-color: transparent; }
+        @keyframes pulse-pending {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
 <body>
-
     <div class="header">
         <h1>Remote Water Controller</h1>
         <p>Water IoT SPCRC</p>
@@ -111,23 +116,16 @@
 
     <div class="dashboard-container">
         <div class="panel control-panel">
-            <h2>
-                <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
-                Motor Control
-            </h2>
+            <h2>Motor Control</h2>
             <div class="motor-indicator off" id="motorIndicator"></div>
             <div class="button-group">
-                <button class="btn btn-on" onclick="sendMqttCommand('on')">Power ON</button>
-                <button class="btn btn-off" onclick="sendMqttCommand('off')">Power OFF</button>
+                <button id="btnOn" class="btn btn-on" onclick="sendMqttCommand('on')">Power ON</button>
+                <button id="btnOff" class="btn btn-off" onclick="sendMqttCommand('off')">Power OFF</button>
             </div>
-            <button class="btn btn-status" onclick="getDeviceStatus()">Refresh Status</button>
         </div>
 
         <div class="panel status-panel">
-            <h2>
-                <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
-                Device Status
-            </h2>
+            <h2>Device Status</h2>
             <div class="status-item">
                 <span class="status-label">Motor State</span>
                 <span class="status-value status-off" id="motorStatus">OFF</span>
@@ -144,10 +142,6 @@
                 <span class="status-label">Total ON Time</span>
                 <span class="status-value" id="totalOnTime">--</span>
             </div>
-            <div class="status-item">
-                <span class="status-label">Last Update</span>
-                <span class="status-value" id="lastUpdate">Never</span>
-            </div>
         </div>
     </div>
 
@@ -159,14 +153,13 @@
         const MQTT_TOPIC_HEARTBEAT = `${MQTT_USERNAME_FOR_TOPICS}/feeds/on-status`;
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
 
-        // --- NEW: Aggressive timings for a highly dynamic feel ---
-        const HEARTBEAT_POLL_INTERVAL_MS = 2000;  // Check for heartbeat every 2 seconds
-        const STATUS_POLL_INTERVAL_MS = 15000; // Get detailed status every 15 seconds
-        const DISCONNECT_TIMEOUT_MS = 5000;    // Consider disconnected after 5s of no heartbeat.
+        const HEARTBEAT_INTERVAL = 2000;
+        const DISCONNECT_TIMEOUT = 5000;
 
         // --- State ---
         let lastHeartbeatTimestamp = 0;
         let isConnected = false;
+        let pendingStateTimeout;
 
         // --- UI Element Cache ---
         const ui = {
@@ -177,21 +170,36 @@
             wifiSignal: document.getElementById('wifiSignal'),
             uptime: document.getElementById('uptime'),
             totalOnTime: document.getElementById('totalOnTime'),
-            lastUpdate: document.getElementById('lastUpdate'),
+            btnOn: document.getElementById('btnOn'),
+            btnOff: document.getElementById('btnOff'),
         };
 
         // --- Core Functions ---
         async function sendMqttCommand(command) {
+            // Optimistic UI: Immediately show a pending state
+            ui.motorIndicator.className = 'motor-indicator pending';
+            ui.btnOn.disabled = true;
+            ui.btnOff.disabled = true;
+            
+            // Set a timeout to revert from pending state if no confirmation is received
+            clearTimeout(pendingStateTimeout);
+            pendingStateTimeout = setTimeout(() => {
+                // If we're still in pending after 5s, something is wrong.
+                // Fetch the real status to get back in sync.
+                getDeviceStatus();
+            }, 5000);
+
             try {
-                const response = await fetch(MQTT_PROXY_ENDPOINT, {
+                await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'publish', topic: MQTT_TOPIC_CONTROL, payload: command })
                 });
-                if (!response.ok) throw new Error('Proxy request failed');
-                setTimeout(getDeviceStatus, 1000);
             } catch (error) {
                 console.error(`Error sending command: ${error.message}`);
+                // Revert UI on error
+                clearTimeout(pendingStateTimeout);
+                getDeviceStatus();
             }
         }
 
@@ -205,70 +213,59 @@
                 if (!response.ok) return;
                 const result = await response.json();
                 updateDashboardUI(result.data);
-            } catch (error) {
-                // Fail silently, heartbeat handles connection status
-            }
+            } catch (error) { /* Fail silently */ }
         }
 
-        async function getHeartbeat() {
+        async function mainLoop() {
             try {
-                const response = await fetch(MQTT_PROXY_ENDPOINT, {
+                await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_HEARTBEAT })
                 });
-                if (!response.ok) throw new Error('Heartbeat fetch failed');
                 lastHeartbeatTimestamp = Date.now();
                 if (!isConnected) {
                     updateConnectionStatus(true);
                     getDeviceStatus();
                 }
-            } catch (error) {
-                // The timeout checker will handle UI updates for failed heartbeats.
+            } catch (error) { /* Fail silently, let timeout handler catch it */ }
+            
+            // Timeout handler
+            if (isConnected && (Date.now() - lastHeartbeatTimestamp > DISCONNECT_TIMEOUT)) {
+                updateConnectionStatus(false);
             }
-        }
-
-        // --- UI Update Functions ---
-        function flashElement(element) {
-            element.classList.add('flash');
-            setTimeout(() => element.classList.remove('flash'), 700);
         }
 
         function updateConnectionStatus(connected) {
             isConnected = connected;
             ui.connectionIndicator.className = 'connection-indicator ' + (connected ? 'connected' : 'disconnected');
             ui.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
-
             if (!connected) {
-                ui.motorIndicator.className = 'motor-indicator off';
-                ui.motorStatus.className = 'status-value status-off';
-                ui.motorStatus.textContent = 'UNKNOWN';
-                ui.wifiSignal.textContent = '--';
-                ui.uptime.textContent = '--';
-                ui.totalOnTime.textContent = '--';
+                updateDashboardUI(null); // Reset UI to default disconnected state
             }
         }
 
         function updateDashboardUI(data) {
-            if (!data) return;
+            // Enable buttons again after an update
+            ui.btnOn.disabled = false;
+            ui.btnOff.disabled = false;
+            clearTimeout(pendingStateTimeout);
+
+            if (!data) { // Handle disconnect case
+                ui.motorIndicator.className = 'motor-indicator off';
+                ui.motorStatus.textContent = 'UNKNOWN';
+                ui.wifiSignal.textContent = '--';
+                ui.uptime.textContent = '--';
+                ui.totalOnTime.textContent = '--';
+                return;
+            }
+
             const isMotorOn = data.motor_state === 'ON';
-
-            if (ui.motorStatus.textContent !== data.motor_state) {
-                ui.motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
-                ui.motorStatus.className = 'status-value ' + (isMotorOn ? 'status-on' : 'status-off');
-                ui.motorStatus.textContent = data.motor_state || 'UNKNOWN';
-                flashElement(ui.motorStatus.parentElement);
-            }
-            
-            const wifiText = data.wifi_signal ? `${data.wifi_signal} dBm` : '--';
-            if(ui.wifiSignal.textContent !== wifiText) {
-                ui.wifiSignal.textContent = wifiText;
-                flashElement(ui.wifiSignal.parentElement);
-            }
-
+            ui.motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
+            ui.motorStatus.textContent = data.motor_state;
+            ui.wifiSignal.textContent = data.wifi_signal ? `${data.wifi_signal} dBm` : '--';
             ui.uptime.textContent = formatSecondsToHMS(data.uptime_s);
             ui.totalOnTime.textContent = formatSecondsToHMS(data.total_on_time_s);
-            ui.lastUpdate.textContent = new Date().toLocaleTimeString();
         }
 
         function formatSecondsToHMS(seconds) {
@@ -280,18 +277,11 @@
             return `${h}h ${m}m ${s}s`;
         }
 
-        function checkConnectionTimeout() {
-            if (isConnected && (Date.now() - lastHeartbeatTimestamp > DISCONNECT_TIMEOUT_MS)) {
-                updateConnectionStatus(false);
-            }
-        }
-
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            getHeartbeat();
-            setInterval(getHeartbeat, HEARTBEAT_POLL_INTERVAL_MS);
-            setInterval(getDeviceStatus, STATUS_POLL_INTERVAL_MS);
-            setInterval(checkConnectionTimeout, 1000);
+            mainLoop(); // Initial run
+            setInterval(mainLoop, HEARTBEAT_INTERVAL); // Main heartbeat loop
+            setInterval(getDeviceStatus, 15000); // Poll for full status less frequently
         });
     </script>
 </body>
