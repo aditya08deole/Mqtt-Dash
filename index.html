@@ -68,7 +68,7 @@
             border-left: 4px solid var(--neon-blue); border-radius: 12px;
         }
         .status-label { font-weight: 400; font-size: 1em; color: var(--text-light); }
-        .status-value { font-weight: 700; padding: 8px 15px; border-radius: 20px; font-size: 14px; }
+        .status-value { font-weight: 700; padding: 8px 15px; border-radius: 20px; font-size: 14px; transition: background-color 0.3s, color 0.3s; }
         .status-on { background: var(--neon-green); color: white; }
         .status-off { background: var(--neon-red); color: white; }
         .connection-status {
@@ -86,6 +86,15 @@
         }
         .motor-indicator.on { background-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); }
         .motor-indicator.off { background-color: var(--neon-red); box-shadow: 0 0 20px var(--neon-red); }
+
+        /* NEW: Animation for data updates */
+        .flash {
+            animation: flash-animation 0.7s ease-out;
+        }
+        @keyframes flash-animation {
+            0% { background-color: var(--neon-blue); color: white; }
+            100% { background-color: transparent; }
+        }
     </style>
 </head>
 <body>
@@ -147,13 +156,13 @@
         const MQTT_USERNAME_FOR_TOPICS = "ADI08";
         const MQTT_TOPIC_CONTROL = `${MQTT_USERNAME_FOR_TOPICS}/feeds/motor-control`;
         const MQTT_TOPIC_STATUS = `${MQTT_USERNAME_FOR_TOPICS}/feeds/esp32-status`;
-        const MQTT_TOPIC_HEARTBEAT = `${MQTT_USERNAME_FOR_TOPICS}/feeds/on-status`; // New heartbeat topic
+        const MQTT_TOPIC_HEARTBEAT = `${MQTT_USERNAME_FOR_TOPICS}/feeds/on-status`;
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
 
-        // Timings
-        const HEARTBEAT_POLL_INTERVAL_MS = 3000;  // Check for heartbeat every 3 seconds
-        const STATUS_POLL_INTERVAL_MS = 20000; // Get detailed status every 20 seconds
-        const DISCONNECT_TIMEOUT_MS = 10000;   // Consider disconnected after 10 seconds of no heartbeat
+        // --- NEW: Aggressive timings for a highly dynamic feel ---
+        const HEARTBEAT_POLL_INTERVAL_MS = 2000;  // Check for heartbeat every 2 seconds
+        const STATUS_POLL_INTERVAL_MS = 15000; // Get detailed status every 15 seconds
+        const DISCONNECT_TIMEOUT_MS = 5000;    // Consider disconnected after 5s of no heartbeat.
 
         // --- State ---
         let lastHeartbeatTimestamp = 0;
@@ -180,7 +189,7 @@
                     body: JSON.stringify({ action: 'publish', topic: MQTT_TOPIC_CONTROL, payload: command })
                 });
                 if (!response.ok) throw new Error('Proxy request failed');
-                setTimeout(getDeviceStatus, 1000); // Get full status update after command
+                setTimeout(getDeviceStatus, 1000);
             } catch (error) {
                 console.error(`Error sending command: ${error.message}`);
             }
@@ -193,11 +202,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_STATUS })
                 });
-                if (!response.ok) return; // Fail silently, let heartbeat handle connection
+                if (!response.ok) return;
                 const result = await response.json();
                 updateDashboardUI(result.data);
             } catch (error) {
-                // Fail silently
+                // Fail silently, heartbeat handles connection status
             }
         }
 
@@ -208,24 +217,26 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_HEARTBEAT })
                 });
-                 if (!response.ok) throw new Error('Heartbeat fetch failed');
-                const result = await response.json();
-                // We only care that we got a response. The value itself ("on") is just for the ESP32.
+                if (!response.ok) throw new Error('Heartbeat fetch failed');
                 lastHeartbeatTimestamp = Date.now();
                 if (!isConnected) {
                     updateConnectionStatus(true);
-                    getDeviceStatus(); // Get full status on initial connect
+                    getDeviceStatus();
                 }
             } catch (error) {
-                // Error will be handled by the timeout checker
+                // The timeout checker will handle UI updates for failed heartbeats.
             }
         }
 
         // --- UI Update Functions ---
+        function flashElement(element) {
+            element.classList.add('flash');
+            setTimeout(() => element.classList.remove('flash'), 700);
+        }
+
         function updateConnectionStatus(connected) {
             isConnected = connected;
-            ui.connectionIndicator.classList.toggle('connected', connected);
-            ui.connectionIndicator.classList.toggle('disconnected', !connected);
+            ui.connectionIndicator.className = 'connection-indicator ' + (connected ? 'connected' : 'disconnected');
             ui.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
 
             if (!connected) {
@@ -241,10 +252,20 @@
         function updateDashboardUI(data) {
             if (!data) return;
             const isMotorOn = data.motor_state === 'ON';
-            ui.motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
-            ui.motorStatus.className = 'status-value ' + (isMotorOn ? 'status-on' : 'status-off');
-            ui.motorStatus.textContent = data.motor_state || 'UNKNOWN';
-            ui.wifiSignal.textContent = data.wifi_signal ? `${data.wifi_signal} dBm` : '--';
+
+            if (ui.motorStatus.textContent !== data.motor_state) {
+                ui.motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
+                ui.motorStatus.className = 'status-value ' + (isMotorOn ? 'status-on' : 'status-off');
+                ui.motorStatus.textContent = data.motor_state || 'UNKNOWN';
+                flashElement(ui.motorStatus.parentElement);
+            }
+            
+            const wifiText = data.wifi_signal ? `${data.wifi_signal} dBm` : '--';
+            if(ui.wifiSignal.textContent !== wifiText) {
+                ui.wifiSignal.textContent = wifiText;
+                flashElement(ui.wifiSignal.parentElement);
+            }
+
             ui.uptime.textContent = formatSecondsToHMS(data.uptime_s);
             ui.totalOnTime.textContent = formatSecondsToHMS(data.total_on_time_s);
             ui.lastUpdate.textContent = new Date().toLocaleTimeString();
@@ -267,13 +288,10 @@
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Initial fetch
             getHeartbeat();
-
-            // Setup intervals
             setInterval(getHeartbeat, HEARTBEAT_POLL_INTERVAL_MS);
             setInterval(getDeviceStatus, STATUS_POLL_INTERVAL_MS);
-            setInterval(checkConnectionTimeout, 1000); // Check for timeout every second
+            setInterval(checkConnectionTimeout, 1000);
         });
     </script>
 </body>
