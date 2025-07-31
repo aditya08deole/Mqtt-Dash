@@ -136,11 +136,12 @@
 
     <script>
         // --- Configuration ---
-        // *** THIS IS THE FIX ***
         const MQTT_PROXY_ENDPOINT = "https://mqtt-dash-two.vercel.app/api/mqtt-proxy";
-        const STATUS_REFRESH_INTERVAL = 3000;
-        const ONLINE_STATE_DURATION = 10000;
-        const MAX_DATA_AGE_SECONDS = 7;
+        
+        // --- MORE DYNAMIC TIMING ---
+        const STATUS_REFRESH_INTERVAL = 2000; // Fetch status every 2 seconds (was 3)
+        const ONLINE_STATE_DURATION = 5000;  // Stay "Online" for 5 seconds after last update (was 10)
+        const MAX_DATA_AGE_SECONDS = 5;       // Ignore data older than 5 seconds (was 7)
 
         // --- State ---
         let pollingTimerId;
@@ -337,7 +338,11 @@
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
-                const apiKey = ""; // API key is handled by the environment
+                // --- API KEY ADDED ---
+                // IMPORTANT: For a real application, this key should be handled more securely,
+                // for example, by using a server-side proxy that adds the key.
+                // Exposing it in client-side code is a security risk.
+                const apiKey = "AIzaSyCncWBwCDJHYBHq12louPCfm8i1dlfuxJA"; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {
