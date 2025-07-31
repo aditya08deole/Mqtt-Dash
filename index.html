@@ -27,7 +27,7 @@
             text-align: center; margin-bottom: 30px; background: var(--glass-bg);
             backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
             padding: 40px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow);
-            width: 100%; max-width: 600px; position: relative; overflow: hidden;
+            width: 100%; max-width: 600px;
         }
         .header h1 { color: var(--sage-green); font-size: 2.8em; margin-bottom: 15px; font-weight: 600; }
         .header p { color: var(--light-text); font-size: 1.2em; font-weight: 400; }
@@ -35,9 +35,7 @@
         .panel {
             background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
             padding: 35px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow); text-align: center;
-            transition: all 0.3s ease; position: relative; overflow: hidden;
         }
-        .panel:hover { transform: translateY(-8px); box-shadow: 0 25px 60px var(--hover-shadow); }
         .panel h2 { color: var(--sage-green); margin-bottom: 25px; font-weight: 600; font-size: 1.8em; }
         .button-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .btn {
@@ -47,58 +45,29 @@
             border: 2px solid transparent; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;
         }
         .btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.05); box-shadow: 0 20px 40px var(--hover-shadow); }
-        .btn:active:not(:disabled) { transform: translateY(-1px) scale(1.02); }
         .btn:disabled { cursor: not-allowed; opacity: 0.6; }
         .btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--white); animation: spin 1s ease-in-out infinite; margin-right: 10px; }
         .btn.loading .spinner { display: block; }
         .btn.loading .btn-text { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .btn-on { background: linear-gradient(135deg, var(--sage-green), var(--soft-green)); color: var(--white); border-color: var(--sage-green); }
-        .btn-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); border-color: var(--error-red); }
-        .btn-toggle { background: linear-gradient(135deg, var(--soft-green), var(--pale-green)); color: var(--dark-text); border-color: var(--soft-green); }
-        .btn-status { background: linear-gradient(135deg, var(--pale-green), var(--cream)); color: var(--dark-text); border-color: var(--pale-green); }
-        .status-item {
-            display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 15px;
-            background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border);
-            border-left: 5px solid var(--sage-green); border-radius: 15px; transition: all 0.3s ease;
-        }
+        .btn-on { background: linear-gradient(135deg, var(--sage-green), var(--soft-green)); color: var(--white); }
+        .btn-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); }
+        .btn-toggle { background: linear-gradient(135deg, var(--soft-green), var(--pale-green)); color: var(--dark-text); }
+        .btn-status { background: linear-gradient(135deg, var(--pale-green), var(--cream)); color: var(--dark-text); }
+        .status-item { display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 15px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-left: 5px solid var(--sage-green); border-radius: 15px; }
         .status-label { font-weight: 600; color: var(--dark-text); font-size: 1.1em; }
-        .status-value { font-weight: 700; padding: 10px 18px; border-radius: 25px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-value { font-weight: 700; padding: 10px 18px; border-radius: 25px; font-size: 14px; text-transform: uppercase; }
         .status-connected, .status-on { background: linear-gradient(135deg, var(--success-green), var(--sage-green)); color: var(--white); }
         .status-disconnected, .status-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); }
         .status-unknown { background: var(--light-text); color: var(--white); }
-        .connection-status {
-            position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 30px;
-            font-weight: 600; font-size: 14px; transition: all 0.3s ease; backdrop-filter: blur(10px);
-            border: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        }
-        .logs-panel { grid-column: 1 / -1; }
-        .log-container {
-            background: linear-gradient(135deg, var(--sage-green), #6d8275); color: var(--cream);
-            padding: 25px; border-radius: 15px; height: 250px; overflow-y: auto;
-            font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6;
-        }
-        .motor-indicator {
-            width: 40px; height: 40px; border-radius: 50%; background-color: var(--light-text);
-            margin: 20px auto; box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
+        .connection-status { position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 30px; font-weight: 600; font-size: 14px; transition: all 0.3s ease; backdrop-filter: blur(10px); border: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
+        .motor-indicator { width: 40px; height: 40px; border-radius: 50%; background-color: var(--light-text); margin: 20px auto; transition: all 0.3s ease; }
         .motor-indicator.on { background-color: var(--success-green); box-shadow: 0 0 20px var(--success-green), 0 0 30px var(--success-green); }
         .motor-indicator.off { background-color: var(--error-red); }
-        .toast-notification {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            padding: 15px 25px; border-radius: 10px; color: var(--white);
-            font-weight: 600; z-index: 1000; opacity: 0;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-        .toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast-notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 15px 25px; border-radius: 10px; color: var(--white); font-weight: 600; z-index: 1000; transition: bottom 0.5s ease; }
+        .toast-notification.show { bottom: 20px; }
         .toast-notification.error { background-color: var(--error-red); }
-        @media (max-width: 768px) {
-            .dashboard-container { grid-template-columns: 1fr; }
-            .header h1 { font-size: 2.2em; }
-            .connection-status { position: relative; top: 0; right: 0; margin: 0 auto 20px; }
-        }
+        @media (max-width: 768px) { .dashboard-container { grid-template-columns: 1fr; } .header h1 { font-size: 2.2em; } .connection-status { position: relative; top: 0; right: 0; margin: 0 auto 20px; } }
     </style>
 </head>
 <body>
@@ -116,52 +85,21 @@
             <h2>🎛️ Motor Control</h2>
             <div class="motor-indicator off" id="motorIndicator"></div>
             <div class="button-group" id="controlButtons">
-                <button class="btn btn-on" data-command="on">
-                    <span class="spinner"></span><span class="btn-text">Power ON</span>
-                </button>
-                <button class="btn btn-off" data-command="off">
-                    <span class="spinner"></span><span class="btn-text">Power OFF</span>
-                </button>
-                <button class="btn btn-toggle" data-command="toggle">
-                    <span class="spinner"></span><span class="btn-text">Toggle</span>
-                </button>
-                <button class="btn btn-status" data-command="refresh">
-                    <span class="spinner"></span><span class="btn-text">Refresh</span>
-                </button>
+                <button class="btn btn-on" data-command="on"><span class="spinner"></span><span class="btn-text">Power ON</span></button>
+                <button class="btn btn-off" data-command="off"><span class="spinner"></span><span class="btn-text">Power OFF</span></button>
+                <button class="btn btn-toggle" data-command="toggle"><span class="spinner"></span><span class="btn-text">Toggle</span></button>
+                <button class="btn btn-status" data-command="refresh"><span class="spinner"></span><span class="btn-text">Refresh</span></button>
             </div>
         </div>
 
         <div class="panel status-panel">
             <h2>📡 Device Status</h2>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">🔌 Device Power</span>
-                <span class="status-value status-unknown" id="devicePowerStatus">UNKNOWN</span>
-            </div>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">💡 Motor State</span>
-                <span class="status-value status-unknown" id="motorStatus">UNKNOWN</span>
-            </div>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">📶 WiFi Signal</span>
-                <span class="status-value" id="wifiSignal">--</span>
-            </div>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">⏱️ Device Uptime</span>
-                <span class="status-value" id="uptime">--</span>
-            </div>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">ON Time</span>
-                <span class="status-value" id="totalOnTime">--</span>
-            </div>
-            <div class="status-item" aria-live="polite">
-                <span class="status-label">Last Update</span>
-                <span class="status-value" id="lastUpdate">Never</span>
-            </div>
-        </div>
-
-        <div class="panel logs-panel">
-            <h2>📋 Activity Logs</h2>
-            <div class="log-container" id="logContainer" aria-live="polite"></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">🔌 Device Power</span><span class="status-value status-unknown" id="devicePowerStatus">UNKNOWN</span></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">💡 Motor State</span><span class="status-value status-unknown" id="motorStatus">UNKNOWN</span></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">📶 WiFi Signal</span><span class="status-value" id="wifiSignal">--</span></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">⏱️ Device Uptime</span><span class="status-value" id="uptime">--</span></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">ON Time</span><span class="status-value" id="totalOnTime">--</span></div>
+            <div class="status-item" aria-live="polite"><span class="status-label">Last Update</span><span class="status-value" id="lastUpdate">Never</span></div>
         </div>
     </div>
 
@@ -170,24 +108,17 @@
     <script>
         // --- Configuration ---
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
-        const STATUS_REFRESH_INTERVAL = 5000; // 5 seconds
-        const DEVICE_OFFLINE_TIMEOUT = 15000; // 15 seconds
+        const STATUS_REFRESH_INTERVAL = 3000; // Fetch status every 3 seconds
+        const DEVICE_OFFLINE_TIMEOUT = 6500;  // Mark as offline after 6.5 seconds of no updates
 
         // --- State ---
         let deviceStatusTimer;
         let offlineDetectionTimer;
 
         // --- DOM Elements ---
-        const logContainer = document.getElementById('logContainer');
         const controlButtons = document.getElementById('controlButtons');
 
         // --- Utility Functions ---
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            logContainer.innerHTML += `<div>[${timestamp}] <span style="color:${type === 'error' ? '#e74c3c' : '#74b9ff'}">${message}</span></div>`;
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-
         function showToast(message, type = 'error') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -212,10 +143,11 @@
         }
 
         // --- UI Update Functions ---
-        function setButtonsLoading(isLoading) {
+        function setButtonsLoading(isLoading, command) {
             controlButtons.querySelectorAll('.btn').forEach(btn => {
+                const isTargetButton = btn.dataset.command === command;
                 btn.disabled = isLoading;
-                if (isLoading) {
+                if (isLoading && isTargetButton) {
                     btn.classList.add('loading');
                 } else {
                     btn.classList.remove('loading');
@@ -234,13 +166,11 @@
                 statusEl.innerHTML = '<span>🔴 Device Offline</span>';
                 powerStatusEl.textContent = 'OFF';
                 powerStatusEl.className = 'status-value status-disconnected';
-                // Reset all values since we have no data
                 updateDashboardUI(null);
             }
         }
 
         function updateDashboardUI(data) {
-            // If data is null, it means the device is offline. Reset UI to unknown/default state.
             const motorIndicator = document.getElementById('motorIndicator');
             const motorStatusEl = document.getElementById('motorStatus');
 
@@ -254,14 +184,12 @@
                 return;
             }
 
-            // Motor State
             const motorState = data.motor_state || 'UNKNOWN';
             const isMotorOn = motorState === 'ON';
             motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
             motorStatusEl.textContent = motorState;
             motorStatusEl.className = 'status-value ' + (isMotorOn ? 'status-on' : 'status-off');
 
-            // Other Stats
             const wifi = getWifiSignalStrength(data.wifi_signal);
             document.getElementById('wifiSignal').innerHTML = `${wifi.icon} ${wifi.text} (${data.wifi_signal || '--'} dBm)`;
             document.getElementById('uptime').textContent = formatSecondsToHMS(data.uptime_s);
@@ -271,20 +199,17 @@
 
         // --- API Communication ---
         async function handleCommand(command) {
+            setButtonsLoading(true, command);
+
             if (command === 'refresh') {
-                log('Manual status refresh requested.', 'info');
-                setButtonsLoading(true);
                 await getDeviceStatus();
                 setButtonsLoading(false);
                 return;
             }
             
-            log(`Sending command: ${command.toUpperCase()}`, 'info');
-            setButtonsLoading(true);
-
             // Optimistic UI Update
             if (command === 'on' || command === 'off') {
-                updateDashboardUI({ motor_state: command.toUpperCase() });
+                updateDashboardUI({ ...window.currentStatus, motor_state: command.toUpperCase() });
             }
 
             try {
@@ -297,22 +222,17 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.details || 'Proxy request failed');
 
-                log(`✅ Command '${command.toUpperCase()}' sent successfully.`, 'success');
-                // Fetch status after a short delay to allow device to process and report back.
                 setTimeout(getDeviceStatus, 750);
 
             } catch (error) {
-                log(`❌ Error sending command: ${error.message}`, 'error');
                 showToast(`Command failed: ${error.message}`, 'error');
-                // Revert optimistic update on failure
-                getDeviceStatus();
+                getDeviceStatus(); // Revert optimistic update on failure
             } finally {
                 setButtonsLoading(false);
             }
         }
 
         async function getDeviceStatus() {
-            // Clear any existing offline timer, as we are attempting a new fetch.
             clearTimeout(offlineDetectionTimer);
 
             try {
@@ -323,51 +243,35 @@
                 });
 
                 const result = await response.json();
-
-                if (!response.ok) {
-                    // 404 means the feed is empty, a clear sign the device is offline.
-                    if (response.status === 404) {
-                       log('Device has not published any status yet. Assuming offline.', 'error');
-                    }
-                    throw new Error(result.details || 'Proxy status request failed');
-                }
-
-                // SUCCESS: We received data.
-                // The primary check for power is the `esp_power_on` flag from the device.
+                if (!response.ok) throw new Error(result.details || 'Proxy status request failed');
+                
                 if (result.data && result.data.esp_power_on) {
+                    window.currentStatus = result.data; // Store latest status globally
                     updateConnectionStatus(true);
                     updateDashboardUI(result.data);
                 } else {
-                    // We got data, but it didn't confirm power. Treat as offline.
                     updateConnectionStatus(false);
                 }
 
             } catch (error) {
-                log(`❌ Error fetching status: ${error.message}`, 'error');
                 updateConnectionStatus(false);
             }
 
-            // Set a timer. If getDeviceStatus isn't successfully called again
-            // within this timeout, we'll declare the device offline.
             offlineDetectionTimer = setTimeout(() => {
-                log('No status update received recently. Marking device as offline.', 'error');
                 updateConnectionStatus(false);
             }, DEVICE_OFFLINE_TIMEOUT);
         }
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            log('Dashboard initialized. Fetching initial status...');
-            
             controlButtons.addEventListener('click', (e) => {
                 const button = e.target.closest('.btn');
-                if (button && button.dataset.command) {
+                if (button && button.dataset.command && !button.disabled) {
                     handleCommand(button.dataset.command);
                 }
             });
 
-            // Start the main loop
-            getDeviceStatus(); // Initial fetch
+            getDeviceStatus();
             deviceStatusTimer = setInterval(getDeviceStatus, STATUS_REFRESH_INTERVAL);
         });
     </script>
