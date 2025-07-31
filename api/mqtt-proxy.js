@@ -25,7 +25,6 @@ export default async function handler(request, response) {
 
     try {
         if (action === 'send_motor_command') {
-            // Commands are now published to the status topic.
             await handlePublish(TOPIC_STATUS, payload);
             return response.status(200).json({ status: 'success', details: 'Command published.' });
 
@@ -58,17 +57,10 @@ function handlePublish(topic, command) {
         });
 
         client.on('connect', () => {
-            // The payload is a JSON string containing the command.
-            const messagePayload = JSON.stringify({
-                command: command,
-                esp_power_on: true // This key helps the ESP32 identify this as a command.
-            });
+            const messagePayload = JSON.stringify({ command: command });
             client.publish(topic, messagePayload, { retain: false }, (err) => {
                 client.end();
-                if (err) {
-                    console.error('[MQTT_PUBLISH_ERROR]', err);
-                    return reject(new Error('Failed to publish message.'));
-                }
+                if (err) return reject(new Error('Failed to publish message.'));
                 resolve();
             });
         });
@@ -81,7 +73,7 @@ function handlePublish(topic, command) {
 }
 
 /**
- * Fetches the last status message from the MQTT topic.
+ * Fetches the last status message and combines it with its timestamp.
  */
 async function handleGetStatus(topic) {
     const feedKey = topic.split('/').pop();
@@ -97,12 +89,17 @@ async function handleGetStatus(topic) {
     }
 
     const data = await apiResponse.json();
-    if (!data || !data.value) {
-        return null;
-    }
+    if (!data || !data.value) return null;
 
     try {
-        return JSON.parse(data.value);
+        // Parse the JSON string from the ESP32
+        const parsedValue = JSON.parse(data.value);
+        
+        // **THE FIX**: Combine the parsed data with the Adafruit timestamp
+        return {
+            ...parsedValue,
+            created_at: data.created_at 
+        };
     } catch (e) {
         console.error('[JSON_PARSE_ERROR]', 'Failed to parse device status:', data.value);
         throw new Error('Received malformed status data from the device.');
