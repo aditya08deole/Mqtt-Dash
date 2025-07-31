@@ -9,64 +9,69 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sage-green: #819A91; --soft-green: #A7C1A8; --pale-green: #D1D8BE;
-            --cream: #EEEFE0; --white: #ffffff; --dark-text: #2d3436;
-            --light-text: #636e72; --shadow: rgba(129, 154, 145, 0.15);
-            --hover-shadow: rgba(129, 154, 145, 0.25); --success-green: #27ae60;
-            --error-red: #e74c3c; --warning-orange: #f39c12; --glass-bg: rgba(255, 255, 255, 0.15);
-            --glass-border: rgba(255, 255, 255, 0.2); --glass-shadow: rgba(0, 0, 0, 0.1);
+            /* New "Deep Ocean" Color Palette */
+            --primary-bg: #0d1117;      /* Deep, dark blue - almost black */
+            --secondary-bg: #161b22;    /* Slightly lighter blue for panels */
+            --border-color: #30363d;    /* Subtle border color */
+            --primary-text: #c9d1d9;    /* Light grey for body text */
+            --heading-text: #58a6ff;    /* Bright blue for headings and accents */
+            --success-color: #238636;   /* Rich green for "on" states */
+            --success-glow: rgba(35, 134, 54, 0.6);
+            --error-color: #da3633;     /* Strong red for "off" states */
+            --error-glow: rgba(218, 54, 51, 0.6);
+            --glass-bg: rgba(48, 54, 61, 0.3); /* More opaque glass effect */
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--cream) 0%, var(--pale-green) 50%, var(--soft-green) 100%);
+            background-color: var(--primary-bg);
+            color: var(--primary-text);
             min-height: 100vh; display: flex; flex-direction: column;
-            align-items: center; padding: 20px; color: var(--dark-text); overflow-x: hidden;
+            align-items: center; padding: 20px;
         }
         .header {
-            text-align: center; margin-bottom: 30px; background: var(--glass-bg);
-            backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
-            padding: 40px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow);
+            text-align: center; margin-bottom: 30px;
+            background: none;
             width: 100%; max-width: 600px;
         }
-        .header h1 { color: var(--sage-green); font-size: 2.8em; margin-bottom: 15px; font-weight: 600; }
-        .header p { color: var(--light-text); font-size: 1.2em; font-weight: 400; }
+        .header h1 { color: var(--heading-text); font-size: 2.8em; margin-bottom: 15px; font-weight: 600; }
+        .header p { color: var(--primary-text); font-size: 1.2em; font-weight: 400; }
         .dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; width: 100%; max-width: 1200px; }
         .panel {
-            background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
-            padding: 35px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow); text-align: center;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            padding: 35px; border-radius: 16px; text-align: center;
+            transition: all 0.3s ease;
         }
-        .panel h2 { color: var(--sage-green); margin-bottom: 25px; font-weight: 600; font-size: 1.8em; }
+        .panel:hover { border-color: var(--heading-text); }
+        .panel h2 { color: var(--heading-text); margin-bottom: 25px; font-weight: 600; font-size: 1.8em; }
         .button-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .btn {
-            padding: 20px 28px; border: none; border-radius: 15px; font-size: 16px; font-weight: 600;
-            cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-transform: uppercase;
-            letter-spacing: 1px; position: relative; overflow: hidden; backdrop-filter: blur(10px);
-            border: 2px solid transparent; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;
+            padding: 18px 25px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease; text-transform: uppercase;
+            letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
+            background-color: var(--secondary-bg); color: var(--primary-text);
         }
-        .btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.05); box-shadow: 0 20px 40px var(--hover-shadow); }
-        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        .btn:hover:not(:disabled) { background-color: var(--border-color); color: var(--white); }
+        .btn:disabled { cursor: not-allowed; opacity: 0.5; }
         .btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--white); animation: spin 1s ease-in-out infinite; margin-right: 10px; }
         .btn.loading .spinner { display: block; }
         .btn.loading .btn-text { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .btn-on { background: linear-gradient(135deg, var(--sage-green), var(--soft-green)); color: var(--white); }
-        .btn-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); }
-        .btn-toggle { background: linear-gradient(135deg, var(--soft-green), var(--pale-green)); color: var(--dark-text); }
-        .btn-status { background: linear-gradient(135deg, var(--pale-green), var(--cream)); color: var(--dark-text); }
-        .status-item { display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 15px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-left: 5px solid var(--sage-green); border-radius: 15px; }
-        .status-label { font-weight: 600; color: var(--dark-text); font-size: 1.1em; }
-        .status-value { font-weight: 700; padding: 10px 18px; border-radius: 25px; font-size: 14px; text-transform: uppercase; }
-        .status-connected, .status-on { background: linear-gradient(135deg, var(--success-green), var(--sage-green)); color: var(--white); }
-        .status-disconnected, .status-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); }
-        .status-unknown { background: var(--light-text); color: var(--white); }
-        .connection-status { position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 30px; font-weight: 600; font-size: 14px; transition: all 0.3s ease; backdrop-filter: blur(10px); border: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
-        .motor-indicator { width: 40px; height: 40px; border-radius: 50%; background-color: var(--light-text); margin: 20px auto; transition: all 0.3s ease; }
-        .motor-indicator.on { background-color: var(--success-green); box-shadow: 0 0 20px var(--success-green), 0 0 30px var(--success-green); }
-        .motor-indicator.off { background-color: var(--error-red); }
-        .toast-notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 15px 25px; border-radius: 10px; color: var(--white); font-weight: 600; z-index: 1000; transition: bottom 0.5s ease; }
+        .btn-on { background-color: var(--success-color); border-color: var(--success-color); color: white; }
+        .btn-off { background-color: var(--error-color); border-color: var(--error-color); color: white; }
+        .status-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 15px; background: var(--primary-bg); border: 1px solid var(--border-color); border-left: 5px solid var(--heading-text); border-radius: 10px; }
+        .status-label { font-weight: 600; color: var(--primary-text); font-size: 1.1em; }
+        .status-value { font-weight: 700; padding: 8px 16px; border-radius: 20px; font-size: 14px; text-transform: uppercase; }
+        .status-connected, .status-on { background-color: var(--success-color); color: var(--white); }
+        .status-disconnected, .status-off { background-color: var(--error-color); color: var(--white); }
+        .status-unknown { background: var(--border-color); color: var(--primary-text); }
+        .connection-status { position: fixed; top: 20px; right: 20px; padding: 12px 22px; border-radius: 30px; font-weight: 600; font-size: 14px; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; border: 1px solid var(--border-color); background-color: var(--secondary-bg); }
+        .motor-indicator { width: 40px; height: 40px; border-radius: 50%; background-color: var(--border-color); margin: 20px auto; transition: all 0.3s ease; }
+        .motor-indicator.on { background-color: var(--success-color); box-shadow: 0 0 15px var(--success-glow), 0 0 25px var(--success-glow); }
+        .motor-indicator.off { background-color: var(--error-color); box-shadow: 0 0 15px var(--error-glow), 0 0 25px var(--error-glow); }
+        .toast-notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 15px 25px; border-radius: 10px; color: var(--white); font-weight: 600; z-index: 1000; transition: bottom 0.5s ease; background-color: var(--error-color); }
         .toast-notification.show { bottom: 20px; }
-        .toast-notification.error { background-color: var(--error-red); }
         @media (max-width: 768px) { .dashboard-container { grid-template-columns: 1fr; } .header h1 { font-size: 2.2em; } .connection-status { position: relative; top: 0; right: 0; margin: 0 auto 20px; } }
     </style>
 </head>
@@ -77,17 +82,16 @@
     </div>
 
     <div id="connectionStatus" class="connection-status" aria-live="polite">
-        <span>🔄 Checking...</span>
+        <span>⚪ Checking...</span>
     </div>
 
     <div class="dashboard-container">
         <div class="panel control-panel">
             <h2>🎛️ Motor Control</h2>
-            <div class="motor-indicator off" id="motorIndicator"></div>
+            <div class="motor-indicator" id="motorIndicator"></div>
             <div class="button-group" id="controlButtons">
                 <button class="btn btn-on" data-command="on"><span class="spinner"></span><span class="btn-text">Power ON</span></button>
                 <button class="btn btn-off" data-command="off"><span class="spinner"></span><span class="btn-text">Power OFF</span></button>
-                <button class="btn btn-toggle" data-command="toggle"><span class="spinner"></span><span class="btn-text">Toggle</span></button>
                 <button class="btn btn-status" data-command="refresh"><span class="spinner"></span><span class="btn-text">Refresh</span></button>
             </div>
         </div>
@@ -109,21 +113,22 @@
         // --- Configuration ---
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
         const STATUS_REFRESH_INTERVAL = 3000; // Fetch status every 3 seconds
-        const DEVICE_OFFLINE_TIMEOUT = 6500;  // Mark as offline after 6.5 seconds of no updates
+        const ONLINE_STATE_DURATION = 10000;  // Stay "Online" for 10 seconds after last update
 
         // --- State ---
-        let deviceStatusTimer;
-        let offlineDetectionTimer;
+        let pollingTimerId;
+        let onlineStatusTimeoutId;
+        let currentDeviceStatus = null;
 
         // --- DOM Elements ---
         const controlButtons = document.getElementById('controlButtons');
 
         // --- Utility Functions ---
-        function showToast(message, type = 'error') {
+        function showToast(message) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = `toast-notification ${type} show`;
-            setTimeout(() => { toast.className = 'toast-notification'; }, 3000);
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3000);
         }
 
         function formatSecondsToHMS(seconds) {
@@ -166,11 +171,12 @@
                 statusEl.innerHTML = '<span>🔴 Device Offline</span>';
                 powerStatusEl.textContent = 'OFF';
                 powerStatusEl.className = 'status-value status-disconnected';
-                updateDashboardUI(null);
+                updateDashboardUI(null); // Reset dashboard when offline
             }
         }
 
         function updateDashboardUI(data) {
+            currentDeviceStatus = data; // Keep track of the latest data
             const motorIndicator = document.getElementById('motorIndicator');
             const motorStatusEl = document.getElementById('motorStatus');
 
@@ -208,8 +214,8 @@
             }
             
             // Optimistic UI Update
-            if (command === 'on' || command === 'off') {
-                updateDashboardUI({ ...window.currentStatus, motor_state: command.toUpperCase() });
+            if ((command === 'on' || command === 'off') && currentDeviceStatus) {
+                updateDashboardUI({ ...currentDeviceStatus, motor_state: command.toUpperCase() });
             }
 
             try {
@@ -225,7 +231,7 @@
                 setTimeout(getDeviceStatus, 750);
 
             } catch (error) {
-                showToast(`Command failed: ${error.message}`, 'error');
+                showToast(`Command failed: ${error.message}`);
                 getDeviceStatus(); // Revert optimistic update on failure
             } finally {
                 setButtonsLoading(false);
@@ -233,8 +239,6 @@
         }
 
         async function getDeviceStatus() {
-            clearTimeout(offlineDetectionTimer);
-
             try {
                 const response = await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
@@ -243,27 +247,37 @@
                 });
 
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.details || 'Proxy status request failed');
+                if (!response.ok) {
+                    // Don't throw an error here, let the timer handle the offline state
+                    console.error("Status fetch failed:", result.details);
+                    return;
+                }
                 
+                // --- NEW ONLINE/OFFLINE LOGIC ---
                 if (result.data && result.data.esp_power_on) {
-                    window.currentStatus = result.data; // Store latest status globally
+                    // 1. Clear any previous "go offline" timer
+                    clearTimeout(onlineStatusTimeoutId);
+
+                    // 2. Immediately show the device as ONLINE
                     updateConnectionStatus(true);
                     updateDashboardUI(result.data);
-                } else {
-                    updateConnectionStatus(false);
+
+                    // 3. Set a new timer to go offline in 10 seconds
+                    onlineStatusTimeoutId = setTimeout(() => {
+                        updateConnectionStatus(false);
+                    }, ONLINE_STATE_DURATION);
                 }
 
             } catch (error) {
-                updateConnectionStatus(false);
+                console.error("Error fetching status:", error.message);
             }
-
-            offlineDetectionTimer = setTimeout(() => {
-                updateConnectionStatus(false);
-            }, DEVICE_OFFLINE_TIMEOUT);
         }
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Set initial state to Offline
+            updateConnectionStatus(false);
+
             controlButtons.addEventListener('click', (e) => {
                 const button = e.target.closest('.btn');
                 if (button && button.dataset.command && !button.disabled) {
@@ -271,8 +285,9 @@
                 }
             });
 
+            // Start polling
             getDeviceStatus();
-            deviceStatusTimer = setInterval(getDeviceStatus, STATUS_REFRESH_INTERVAL);
+            pollingTimerId = setInterval(getDeviceStatus, STATUS_REFRESH_INTERVAL);
         });
     </script>
 </body>
