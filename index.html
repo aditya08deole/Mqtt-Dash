@@ -136,7 +136,8 @@
 
     <script>
         // --- Configuration ---
-        const MQTT_PROXY_ENDPOINT = "https://your-project-name.vercel.app/api/mqtt-proxy";
+        // *** THIS IS THE FIX ***
+        const MQTT_PROXY_ENDPOINT = "https://mqtt-dash-two.vercel.app/api/mqtt-proxy";
         const STATUS_REFRESH_INTERVAL = 3000;
         const ONLINE_STATE_DURATION = 10000;
         const MAX_DATA_AGE_SECONDS = 7;
@@ -270,12 +271,6 @@
 
         async function getDeviceStatus() {
             try {
-                if (MQTT_PROXY_ENDPOINT.includes("your-project-name.vercel.app")) {
-                    console.error("Please replace the placeholder URL in MQTT_PROXY_ENDPOINT.");
-                    showToast("Configuration error: Please set your Vercel URL.");
-                    return;
-                }
-                
                 const response = await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
