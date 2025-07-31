@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* New "Deep Ocean" Color Palette */
+            /* "Deep Ocean" Color Palette */
             --primary-bg: #0d1117;      /* Deep, dark blue - almost black */
             --secondary-bg: #161b22;    /* Slightly lighter blue for panels */
             --border-color: #30363d;    /* Subtle border color */
@@ -19,7 +19,7 @@
             --success-glow: rgba(35, 134, 54, 0.6);
             --error-color: #da3633;     /* Strong red for "off" states */
             --error-glow: rgba(218, 54, 51, 0.6);
-            --glass-bg: rgba(48, 54, 61, 0.3); /* More opaque glass effect */
+            --gemini-purple: #8a3ffc;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -60,6 +60,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .btn-on { background-color: var(--success-color); border-color: var(--success-color); color: white; }
         .btn-off { background-color: var(--error-color); border-color: var(--error-color); color: white; }
+        .btn-gemini { background: linear-gradient(45deg, var(--gemini-purple), var(--heading-text)); color: white; border-color: var(--gemini-purple); }
         .status-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 15px; background: var(--primary-bg); border: 1px solid var(--border-color); border-left: 5px solid var(--heading-text); border-radius: 10px; }
         .status-label { font-weight: 600; color: var(--primary-text); font-size: 1.1em; }
         .status-value { font-weight: 700; padding: 8px 16px; border-radius: 20px; font-size: 14px; text-transform: uppercase; }
@@ -72,6 +73,17 @@
         .motor-indicator.off { background-color: var(--error-color); box-shadow: 0 0 15px var(--error-glow), 0 0 25px var(--error-glow); }
         .toast-notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 15px 25px; border-radius: 10px; color: var(--white); font-weight: 600; z-index: 1000; transition: bottom 0.5s ease; background-color: var(--error-color); }
         .toast-notification.show { bottom: 20px; }
+        .report-panel { grid-column: 1 / -1; }
+        #reportContainer {
+            background-color: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+        #reportContent { white-space: pre-wrap; line-height: 1.6; }
         @media (max-width: 768px) { .dashboard-container { grid-template-columns: 1fr; } .header h1 { font-size: 2.2em; } .connection-status { position: relative; top: 0; right: 0; margin: 0 auto 20px; } }
     </style>
 </head>
@@ -105,15 +117,29 @@
             <div class="status-item" aria-live="polite"><span class="status-label">ON Time</span><span class="status-value" id="totalOnTime">--</span></div>
             <div class="status-item" aria-live="polite"><span class="status-label">Last Update</span><span class="status-value" id="lastUpdate">Never</span></div>
         </div>
+
+        <div class="panel report-panel">
+            <h2>✨ AI-Powered Analysis</h2>
+            <p style="margin-bottom: 20px;">Get a human-readable summary of the device's current status.</p>
+            <button class="btn btn-gemini" id="generateReportBtn">
+                <span class="spinner"></span>
+                <span class="btn-text">Generate Report ✨</span>
+            </button>
+            <div id="reportContainer">
+                <h3 style="color: var(--heading-text); margin-bottom: 10px;">Status Report:</h3>
+                <p id="reportContent"></p>
+            </div>
+        </div>
     </div>
 
     <div id="toast" class="toast-notification"></div>
 
     <script>
         // --- Configuration ---
-        const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
-        const STATUS_REFRESH_INTERVAL = 3000; // Fetch status every 3 seconds
-        const ONLINE_STATE_DURATION = 10000;  // Stay "Online" for 10 seconds after last update
+        const MQTT_PROXY_ENDPOINT = "https://your-project-name.vercel.app/api/mqtt-proxy";
+        const STATUS_REFRESH_INTERVAL = 3000;
+        const ONLINE_STATE_DURATION = 10000;
+        const MAX_DATA_AGE_SECONDS = 7;
 
         // --- State ---
         let pollingTimerId;
@@ -122,6 +148,9 @@
 
         // --- DOM Elements ---
         const controlButtons = document.getElementById('controlButtons');
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const reportContainer = document.getElementById('reportContainer');
+        const reportContent = document.getElementById('reportContent');
 
         // --- Utility Functions ---
         function showToast(message) {
@@ -171,12 +200,12 @@
                 statusEl.innerHTML = '<span>🔴 Device Offline</span>';
                 powerStatusEl.textContent = 'OFF';
                 powerStatusEl.className = 'status-value status-disconnected';
-                updateDashboardUI(null); // Reset dashboard when offline
+                updateDashboardUI(null);
             }
         }
 
         function updateDashboardUI(data) {
-            currentDeviceStatus = data; // Keep track of the latest data
+            currentDeviceStatus = data;
             const motorIndicator = document.getElementById('motorIndicator');
             const motorStatusEl = document.getElementById('motorStatus');
 
@@ -187,9 +216,11 @@
                 document.getElementById('wifiSignal').textContent = '--';
                 document.getElementById('uptime').textContent = '--';
                 document.getElementById('totalOnTime').textContent = '--';
+                generateReportBtn.disabled = true;
                 return;
             }
-
+            
+            generateReportBtn.disabled = false;
             const motorState = data.motor_state || 'UNKNOWN';
             const isMotorOn = motorState === 'ON';
             motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
@@ -213,7 +244,6 @@
                 return;
             }
             
-            // Optimistic UI Update
             if ((command === 'on' || command === 'off') && currentDeviceStatus) {
                 updateDashboardUI({ ...currentDeviceStatus, motor_state: command.toUpperCase() });
             }
@@ -232,7 +262,7 @@
 
             } catch (error) {
                 showToast(`Command failed: ${error.message}`);
-                getDeviceStatus(); // Revert optimistic update on failure
+                getDeviceStatus();
             } finally {
                 setButtonsLoading(false);
             }
@@ -240,6 +270,12 @@
 
         async function getDeviceStatus() {
             try {
+                if (MQTT_PROXY_ENDPOINT.includes("your-project-name.vercel.app")) {
+                    console.error("Please replace the placeholder URL in MQTT_PROXY_ENDPOINT.");
+                    showToast("Configuration error: Please set your Vercel URL.");
+                    return;
+                }
+                
                 const response = await fetch(MQTT_PROXY_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -248,21 +284,24 @@
 
                 const result = await response.json();
                 if (!response.ok) {
-                    // Don't throw an error here, let the timer handle the offline state
                     console.error("Status fetch failed:", result.details);
                     return;
                 }
                 
-                // --- NEW ONLINE/OFFLINE LOGIC ---
-                if (result.data && result.data.esp_power_on) {
-                    // 1. Clear any previous "go offline" timer
-                    clearTimeout(onlineStatusTimeoutId);
+                if (result.data && result.data.esp_power_on && result.data.created_at) {
+                    const dataTimestamp = new Date(result.data.created_at).getTime();
+                    const now = new Date().getTime();
+                    const ageInSeconds = (now - dataTimestamp) / 1000;
 
-                    // 2. Immediately show the device as ONLINE
+                    if (ageInSeconds > MAX_DATA_AGE_SECONDS) {
+                        console.log(`Ignoring stale data (age: ${Math.round(ageInSeconds)}s)`);
+                        return;
+                    }
+
+                    clearTimeout(onlineStatusTimeoutId);
                     updateConnectionStatus(true);
                     updateDashboardUI(result.data);
 
-                    // 3. Set a new timer to go offline in 10 seconds
                     onlineStatusTimeoutId = setTimeout(() => {
                         updateConnectionStatus(false);
                     }, ONLINE_STATE_DURATION);
@@ -273,9 +312,71 @@
             }
         }
 
+        /**
+         * ✨ Generates a status report using the Gemini API.
+         */
+        async function generateReport() {
+            if (!currentDeviceStatus) {
+                showToast("No device data available to generate a report.");
+                return;
+            }
+
+            generateReportBtn.classList.add('loading');
+            generateReportBtn.disabled = true;
+            reportContainer.style.display = 'block';
+            reportContent.textContent = 'Generating analysis...';
+
+            const { motor_state, wifi_signal, uptime_s, total_on_time_s } = currentDeviceStatus;
+
+            const prompt = `
+                Analyze the following status data from an ESP32-controlled motor and provide a brief, human-readable summary.
+                - Motor State: ${motor_state}
+                - WiFi Signal Strength: ${wifi_signal} dBm
+                - Device Uptime: ${formatSecondsToHMS(uptime_s)}
+                - Total Motor ON Time: ${formatSecondsToHMS(total_on_time_s)}
+
+                Your analysis should be concise (2-3 sentences) and easy for a non-technical user to understand.
+                Comment on the WiFi signal quality and the motor's usage pattern.
+            `;
+
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // API key is handled by the environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    reportContent.textContent = text;
+                } else {
+                    throw new Error("No content returned from API.");
+                }
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                reportContent.textContent = `Failed to generate report. ${error.message}`;
+                showToast("Error generating AI report.");
+            } finally {
+                generateReportBtn.classList.remove('loading');
+                generateReportBtn.disabled = false;
+            }
+        }
+
+
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Set initial state to Offline
             updateConnectionStatus(false);
 
             controlButtons.addEventListener('click', (e) => {
@@ -285,7 +386,8 @@
                 }
             });
 
-            // Start polling
+            generateReportBtn.addEventListener('click', generateReport);
+
             getDeviceStatus();
             pollingTimerId = setInterval(getDeviceStatus, STATUS_REFRESH_INTERVAL);
         });
