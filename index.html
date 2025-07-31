@@ -3,236 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Water IoT Dashboard</title>
+    <title>ESP32 Remote Motor Control (MQTT via Vercel Proxy)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --light-bg: #f4f7fc;
-            --panel-bg: rgba(255, 255, 255, 0.6);
-            --text-dark: #2d3748;
-            --text-light: #718096;
-            --border-color: rgba(0, 0, 0, 0.05);
-            --neon-green: #28a745;
-            --neon-red: #dc3545;
-            --neon-blue: #007bff;
-            --neon-pending: #ffc107;
-            --shadow-color: rgba(0, 0, 0, 0.05);
+            --sage-green: #819A91; --soft-green: #A7C1A8; --pale-green: #D1D8BE;
+            --cream: #EEEFE0; --white: #ffffff; --dark-text: #2d3436;
+            --light-text: #636e72; --shadow: rgba(129, 154, 145, 0.15);
+            --hover-shadow: rgba(129, 154, 145, 0.25); --success-green: #27ae60;
+            --error-red: #e74c3c; --warning-orange: #f39c12; --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2); --glass-shadow: rgba(0, 0, 0, 0.1);
         }
-        /* ... All other CSS is identical to the previous version ... */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--light-bg);
+            background: linear-gradient(135deg, var(--cream) 0%, var(--pale-green) 50%, var(--soft-green) 100%);
             min-height: 100vh; display: flex; flex-direction: column;
-            align-items: center; padding: 20px; color: var(--text-dark);
+            align-items: center; padding: 20px; color: var(--dark-text); overflow-x: hidden;
         }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 2em; font-weight: 700; }
-        .header p { color: var(--text-light); }
-        .dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; width: 100%; max-width: 1200px; }
+        .header {
+            text-align: center; margin-bottom: 30px; background: var(--glass-bg);
+            backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
+            padding: 40px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow);
+            width: 100%; max-width: 600px; position: relative; overflow: hidden;
+        }
+        .header h1 { color: var(--sage-green); font-size: 2.8em; margin-bottom: 15px; font-weight: 600; }
+        .header p { color: var(--light-text); font-size: 1.2em; font-weight: 400; }
+        .dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; width: 100%; max-width: 1200px; }
         .panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            padding: 30px; border-radius: 20px;
-            box-shadow: 0 8px 32px 0 var(--shadow-color);
-            text-align: center;
+            background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border);
+            padding: 35px; border-radius: 20px; box-shadow: 0 15px 40px var(--glass-shadow); text-align: center;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
         }
-        .panel h2 {
-            margin-bottom: 25px; font-weight: 600; font-size: 1.4em;
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-        }
+        .panel:hover { transform: translateY(-8px); box-shadow: 0 25px 60px var(--hover-shadow); }
+        .panel h2 { color: var(--sage-green); margin-bottom: 25px; font-weight: 600; font-size: 1.8em; }
+        .button-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .btn {
-            padding: 15px 25px; border: 2px solid transparent; border-radius: 12px;
-            font-size: 16px; font-weight: 600; cursor: pointer;
-            text-transform: uppercase; letter-spacing: 1px;
-            transition: all 0.2s ease;
+            padding: 20px 28px; border: none; border-radius: 15px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-transform: uppercase;
+            letter-spacing: 1px; position: relative; overflow: hidden; backdrop-filter: blur(10px);
+            border: 2px solid transparent; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;
         }
-        .btn:disabled { cursor: not-allowed; filter: grayscale(0.7); opacity: 0.6; }
-        .btn-on {
-            background: rgba(40, 167, 69, 0.1); border-color: var(--neon-green); color: var(--neon-green);
-        }
-        .btn-on:not(:disabled):hover { background: rgba(40, 167, 69, 0.2); box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); }
-        .btn-off {
-            background: rgba(220, 53, 69, 0.1); border-color: var(--neon-red); color: var(--neon-red);
-        }
-        .btn-off:not(:disabled):hover { background: rgba(220, 53, 69, 0.2); box-shadow: 0 0 15px rgba(220, 53, 69, 0.4); }
-        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.05); box-shadow: 0 20px 40px var(--hover-shadow); }
+        .btn:active:not(:disabled) { transform: translateY(-1px) scale(1.02); }
+        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        .btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--white); animation: spin 1s ease-in-out infinite; margin-right: 10px; }
+        .btn.loading .spinner { display: block; }
+        .btn.loading .btn-text { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-on { background: linear-gradient(135deg, var(--sage-green), var(--soft-green)); color: var(--white); border-color: var(--sage-green); }
+        .btn-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); border-color: var(--error-red); }
+        .btn-toggle { background: linear-gradient(135deg, var(--soft-green), var(--pale-green)); color: var(--dark-text); border-color: var(--soft-green); }
+        .btn-status { background: linear-gradient(135deg, var(--pale-green), var(--cream)); color: var(--dark-text); border-color: var(--pale-green); }
         .status-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px; margin-bottom: 12px; background: rgba(0,0,0,0.03);
-            border-left: 4px solid var(--neon-blue); border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 15px;
+            background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border);
+            border-left: 5px solid var(--sage-green); border-radius: 15px; transition: all 0.3s ease;
         }
-        .status-label { font-weight: 400; font-size: 1em; color: var(--text-light); }
-        .status-value { font-weight: 700; padding: 8px 15px; border-radius: 20px; font-size: 14px; transition: background-color 0.3s, color 0.3s; }
-        .status-on { background: var(--neon-green); color: white; }
-        .status-off { background: var(--neon-red); color: white; }
+        .status-label { font-weight: 600; color: var(--dark-text); font-size: 1.1em; }
+        .status-value { font-weight: 700; padding: 10px 18px; border-radius: 25px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-connected, .status-on { background: linear-gradient(135deg, var(--success-green), var(--sage-green)); color: var(--white); }
+        .status-disconnected, .status-off { background: linear-gradient(135deg, var(--error-red), #c0392b); color: var(--white); }
+        .status-unknown { background: var(--light-text); color: var(--white); }
         .connection-status {
-            position: fixed; top: 20px; right: 20px; padding: 10px 20px; border-radius: 30px;
-            font-weight: 600; transition: all 0.3s ease; background: var(--panel-bg);
-            border: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px;
-            backdrop-filter: blur(10px);
+            position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 30px;
+            font-weight: 600; font-size: 14px; transition: all 0.3s ease; backdrop-filter: blur(10px);
+            border: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
         }
-        .connection-indicator { width: 12px; height: 12px; border-radius: 50%; transition: all 0.3s ease; }
-        .connection-indicator.connected { background-color: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
-        .connection-indicator.disconnected { background-color: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
+        .logs-panel { grid-column: 1 / -1; }
+        .log-container {
+            background: linear-gradient(135deg, var(--sage-green), #6d8275); color: var(--cream);
+            padding: 25px; border-radius: 15px; height: 250px; overflow-y: auto;
+            font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6;
+        }
         .motor-indicator {
-            width: 50px; height: 50px; border-radius: 50%; margin: 20px auto;
-            transition: all 0.3s ease; border: 3px solid rgba(0,0,0,0.05);
+            width: 40px; height: 40px; border-radius: 50%; background-color: var(--light-text);
+            margin: 20px auto; box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
         }
-        .motor-indicator.on { background-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); }
-        .motor-indicator.off { background-color: var(--neon-red); box-shadow: 0 0 20px var(--neon-red); }
-        .motor-indicator.pending {
-            background-color: var(--neon-pending);
-            box-shadow: 0 0 20px var(--neon-pending);
-            animation: pulse-pending 1.5s infinite ease-in-out;
+        .motor-indicator.on { background-color: var(--success-green); box-shadow: 0 0 20px var(--success-green), 0 0 30px var(--success-green); }
+        .motor-indicator.off { background-color: var(--error-red); }
+        .toast-notification {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 15px 25px; border-radius: 10px; color: var(--white);
+            font-weight: 600; z-index: 1000; opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
-        @keyframes pulse-pending {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
+        .toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast-notification.error { background-color: var(--error-red); }
+        @media (max-width: 768px) {
+            .dashboard-container { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2.2em; }
+            .connection-status { position: relative; top: 0; right: 0; margin: 0 auto 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="header"><h1>Remote Water Controller</h1><p>Water IoT SPCRC</p></div>
-    <div class="connection-status" id="connectionStatus"><div class="connection-indicator disconnected" id="connectionIndicator"></div><span id="connectionText">Connecting...</span></div>
-    <div class="dashboard-container">
-        <div class="panel control-panel"><h2>Motor Control</h2><div class="motor-indicator off" id="motorIndicator"></div><div class="button-group"><button id="btnOn" class="btn btn-on" onclick="sendMqttCommand('on')">Power ON</button><button id="btnOff" class="btn btn-off" onclick="sendMqttCommand('off')">Power OFF</button></div></div>
-        <div class="panel status-panel"><h2>Device Status</h2><div class="status-item"><span class="status-label">Motor State</span><span class="status-value status-off" id="motorStatus">OFF</span></div><div class="status-item"><span class="status-label">WiFi Signal</span><span class="status-value" id="wifiSignal">--</span></div><div class="status-item"><span class="status-label">Device Uptime</span><span class="status-value" id="uptime">--</span></div><div class="status-item"><span class="status-label">Total ON Time</span><span class="status-value" id="totalOnTime">--</span></div></div>
+    <div class="header">
+        <h1>ESP32 Remote Motor Control</h1>
+        <p>Control and monitor your ESP32 securely via an MQTT Proxy</p>
     </div>
 
+    <div id="connectionStatus" class="connection-status" aria-live="polite">
+        <span>🔄 Checking...</span>
+    </div>
+
+    <div class="dashboard-container">
+        <div class="panel control-panel">
+            <h2>🎛️ Motor Control</h2>
+            <div class="motor-indicator off" id="motorIndicator"></div>
+            <div class="button-group" id="controlButtons">
+                <button class="btn btn-on" data-command="on">
+                    <span class="spinner"></span><span class="btn-text">Power ON</span>
+                </button>
+                <button class="btn btn-off" data-command="off">
+                    <span class="spinner"></span><span class="btn-text">Power OFF</span>
+                </button>
+                <button class="btn btn-toggle" data-command="toggle">
+                    <span class="spinner"></span><span class="btn-text">Toggle</span>
+                </button>
+                <button class="btn btn-status" data-command="refresh">
+                    <span class="spinner"></span><span class="btn-text">Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="panel status-panel">
+            <h2>📡 Device Status</h2>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">🔌 Device Power</span>
+                <span class="status-value status-unknown" id="devicePowerStatus">UNKNOWN</span>
+            </div>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">💡 Motor State</span>
+                <span class="status-value status-unknown" id="motorStatus">UNKNOWN</span>
+            </div>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">📶 WiFi Signal</span>
+                <span class="status-value" id="wifiSignal">--</span>
+            </div>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">⏱️ Device Uptime</span>
+                <span class="status-value" id="uptime">--</span>
+            </div>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">ON Time</span>
+                <span class="status-value" id="totalOnTime">--</span>
+            </div>
+            <div class="status-item" aria-live="polite">
+                <span class="status-label">Last Update</span>
+                <span class="status-value" id="lastUpdate">Never</span>
+            </div>
+        </div>
+
+        <div class="panel logs-panel">
+            <h2>📋 Activity Logs</h2>
+            <div class="log-container" id="logContainer" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast-notification"></div>
+
     <script>
-        const MQTT_USERNAME_FOR_TOPICS = "ADI08";
-        const MQTT_TOPIC_CONTROL = `${MQTT_USERNAME_FOR_TOPICS}/feeds/motor-control`;
-        const MQTT_TOPIC_STATUS = `${MQTT_USERNAME_FOR_TOPICS}/feeds/esp32-status`;
-        const MQTT_TOPIC_HEARTBEAT = `${MQTT_USERNAME_FOR_TOPICS}/feeds/on-status`;
+        // --- Configuration ---
         const MQTT_PROXY_ENDPOINT = "/api/mqtt-proxy";
+        const STATUS_REFRESH_INTERVAL = 5000; // 5 seconds
+        const DEVICE_OFFLINE_TIMEOUT = 15000; // 15 seconds
 
-        // NEW TIMINGS to match the ESP32's 6-second heartbeat cycle
-        const HEARTBEAT_INTERVAL = 3000;   // Poll for heartbeat every 3 seconds
-        const DISCONNECT_TIMEOUT = 7000;   // Timeout after 7 seconds of no heartbeat
-        const FULL_STATUS_INTERVAL = 6500; // Poll for full status every 6.5 seconds
+        // --- State ---
+        let deviceStatusTimer;
+        let offlineDetectionTimer;
 
-        let lastHeartbeatTimestamp = 0;
-        let isConnected = false;
-        let pendingStateTimeout;
+        // --- DOM Elements ---
+        const logContainer = document.getElementById('logContainer');
+        const controlButtons = document.getElementById('controlButtons');
 
-        const ui = {
-            connectionIndicator: document.getElementById('connectionIndicator'),
-            connectionText: document.getElementById('connectionText'),
-            motorIndicator: document.getElementById('motorIndicator'),
-            motorStatus: document.getElementById('motorStatus'),
-            wifiSignal: document.getElementById('wifiSignal'),
-            uptime: document.getElementById('uptime'),
-            totalOnTime: document.getElementById('totalOnTime'),
-            btnOn: document.getElementById('btnOn'),
-            btnOff: document.getElementById('btnOff'),
-        };
-
-        async function sendMqttCommand(command) {
-            ui.motorIndicator.className = 'motor-indicator pending';
-            ui.btnOn.disabled = true;
-            ui.btnOff.disabled = true;
-            clearTimeout(pendingStateTimeout);
-            pendingStateTimeout = setTimeout(() => getDeviceStatus(), 5000);
-            try {
-                await fetch(MQTT_PROXY_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'publish', topic: MQTT_TOPIC_CONTROL, payload: command })
-                });
-            } catch (error) {
-                console.error(`Error sending command: ${error.message}`);
-                clearTimeout(pendingStateTimeout);
-                getDeviceStatus();
-            }
+        // --- Utility Functions ---
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `<div>[${timestamp}] <span style="color:${type === 'error' ? '#e74c3c' : '#74b9ff'}">${message}</span></div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        async function getDeviceStatus() {
-            try {
-                const response = await fetch(MQTT_PROXY_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_STATUS })
-                });
-                if (!response.ok) return;
-                const result = await response.json();
-                updateDashboardUI(result.data);
-            } catch (error) { /* Fail silently */ }
-        }
-
-        async function mainLoop() {
-            try {
-                const response = await fetch(MQTT_PROXY_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_status', topic: MQTT_TOPIC_HEARTBEAT })
-                });
-                if (!response.ok) throw new Error('Heartbeat fetch failed');
-                const result = await response.json();
-                // Check that the value is "true" as expected
-                if (result.data.value === "true") {
-                    lastHeartbeatTimestamp = Date.now();
-                    if (!isConnected) {
-                        updateConnectionStatus(true);
-                    }
-                }
-            } catch (error) { /* Let timeout handler catch it */ }
-            
-            if (isConnected && (Date.now() - lastHeartbeatTimestamp > DISCONNECT_TIMEOUT)) {
-                updateConnectionStatus(false);
-            }
-        }
-
-        function updateConnectionStatus(connected) {
-            isConnected = connected;
-            ui.connectionIndicator.className = 'connection-indicator ' + (connected ? 'connected' : 'disconnected');
-            ui.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
-            if (connected) {
-                getDeviceStatus(); // Get full status on initial connect
-            } else {
-                updateDashboardUI(null);
-            }
-        }
-
-        function updateDashboardUI(data) {
-            ui.btnOn.disabled = false;
-            ui.btnOff.disabled = false;
-            clearTimeout(pendingStateTimeout);
-
-            if (!data) {
-                ui.motorIndicator.className = 'motor-indicator off';
-                ui.motorStatus.textContent = 'UNKNOWN';
-                ui.wifiSignal.textContent = '--';
-                ui.uptime.textContent = '--';
-                ui.totalOnTime.textContent = '--';
-                return;
-            }
-
-            const isMotorOn = data.motor_state === 'ON';
-            ui.motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
-            ui.motorStatus.textContent = data.motor_state;
-            ui.wifiSignal.textContent = data.wifi_signal ? `${data.wifi_signal} dBm` : '--';
-            ui.uptime.textContent = formatSecondsToHMS(data.uptime_s);
-            ui.totalOnTime.textContent = formatSecondsToHMS(data.total_on_time_s);
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast-notification ${type} show`;
+            setTimeout(() => { toast.className = 'toast-notification'; }, 3000);
         }
 
         function formatSecondsToHMS(seconds) {
-            if (isNaN(seconds)) return '--';
-            seconds = Math.floor(seconds);
+            if (isNaN(seconds) || seconds < 0) return '--';
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             const s = Math.floor(seconds % 60);
             return `${h}h ${m}m ${s}s`;
         }
 
+        function getWifiSignalStrength(dbm) {
+            if (isNaN(dbm)) return { icon: '?', text: '--' };
+            if (dbm >= -67) return { icon: '📶', text: 'Excellent' };
+            if (dbm >= -70) return { icon: '📶', text: 'Good' };
+            if (dbm >= -80) return { icon: '📶', text: 'Fair' };
+            return { icon: '📶', text: 'Weak' };
+        }
+
+        // --- UI Update Functions ---
+        function setButtonsLoading(isLoading) {
+            controlButtons.querySelectorAll('.btn').forEach(btn => {
+                btn.disabled = isLoading;
+                if (isLoading) {
+                    btn.classList.add('loading');
+                } else {
+                    btn.classList.remove('loading');
+                }
+            });
+        }
+
+        function updateConnectionStatus(isOnline) {
+            const statusEl = document.getElementById('connectionStatus');
+            const powerStatusEl = document.getElementById('devicePowerStatus');
+            if (isOnline) {
+                statusEl.innerHTML = '<span>🟢 Device Online</span>';
+                powerStatusEl.textContent = 'ON';
+                powerStatusEl.className = 'status-value status-connected';
+            } else {
+                statusEl.innerHTML = '<span>🔴 Device Offline</span>';
+                powerStatusEl.textContent = 'OFF';
+                powerStatusEl.className = 'status-value status-disconnected';
+                // Reset all values since we have no data
+                updateDashboardUI(null);
+            }
+        }
+
+        function updateDashboardUI(data) {
+            // If data is null, it means the device is offline. Reset UI to unknown/default state.
+            const motorIndicator = document.getElementById('motorIndicator');
+            const motorStatusEl = document.getElementById('motorStatus');
+
+            if (!data) {
+                motorIndicator.className = 'motor-indicator';
+                motorStatusEl.textContent = 'UNKNOWN';
+                motorStatusEl.className = 'status-value status-unknown';
+                document.getElementById('wifiSignal').textContent = '--';
+                document.getElementById('uptime').textContent = '--';
+                document.getElementById('totalOnTime').textContent = '--';
+                return;
+            }
+
+            // Motor State
+            const motorState = data.motor_state || 'UNKNOWN';
+            const isMotorOn = motorState === 'ON';
+            motorIndicator.className = 'motor-indicator ' + (isMotorOn ? 'on' : 'off');
+            motorStatusEl.textContent = motorState;
+            motorStatusEl.className = 'status-value ' + (isMotorOn ? 'status-on' : 'status-off');
+
+            // Other Stats
+            const wifi = getWifiSignalStrength(data.wifi_signal);
+            document.getElementById('wifiSignal').innerHTML = `${wifi.icon} ${wifi.text} (${data.wifi_signal || '--'} dBm)`;
+            document.getElementById('uptime').textContent = formatSecondsToHMS(data.uptime_s);
+            document.getElementById('totalOnTime').textContent = formatSecondsToHMS(data.total_on_time_s);
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // --- API Communication ---
+        async function handleCommand(command) {
+            if (command === 'refresh') {
+                log('Manual status refresh requested.', 'info');
+                setButtonsLoading(true);
+                await getDeviceStatus();
+                setButtonsLoading(false);
+                return;
+            }
+            
+            log(`Sending command: ${command.toUpperCase()}`, 'info');
+            setButtonsLoading(true);
+
+            // Optimistic UI Update
+            if (command === 'on' || command === 'off') {
+                updateDashboardUI({ motor_state: command.toUpperCase() });
+            }
+
+            try {
+                const response = await fetch(MQTT_PROXY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'send_motor_command', payload: command })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.details || 'Proxy request failed');
+
+                log(`✅ Command '${command.toUpperCase()}' sent successfully.`, 'success');
+                // Fetch status after a short delay to allow device to process and report back.
+                setTimeout(getDeviceStatus, 750);
+
+            } catch (error) {
+                log(`❌ Error sending command: ${error.message}`, 'error');
+                showToast(`Command failed: ${error.message}`, 'error');
+                // Revert optimistic update on failure
+                getDeviceStatus();
+            } finally {
+                setButtonsLoading(false);
+            }
+        }
+
+        async function getDeviceStatus() {
+            // Clear any existing offline timer, as we are attempting a new fetch.
+            clearTimeout(offlineDetectionTimer);
+
+            try {
+                const response = await fetch(MQTT_PROXY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_device_status' })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    // 404 means the feed is empty, a clear sign the device is offline.
+                    if (response.status === 404) {
+                       log('Device has not published any status yet. Assuming offline.', 'error');
+                    }
+                    throw new Error(result.details || 'Proxy status request failed');
+                }
+
+                // SUCCESS: We received data.
+                // The primary check for power is the `esp_power_on` flag from the device.
+                if (result.data && result.data.esp_power_on) {
+                    updateConnectionStatus(true);
+                    updateDashboardUI(result.data);
+                } else {
+                    // We got data, but it didn't confirm power. Treat as offline.
+                    updateConnectionStatus(false);
+                }
+
+            } catch (error) {
+                log(`❌ Error fetching status: ${error.message}`, 'error');
+                updateConnectionStatus(false);
+            }
+
+            // Set a timer. If getDeviceStatus isn't successfully called again
+            // within this timeout, we'll declare the device offline.
+            offlineDetectionTimer = setTimeout(() => {
+                log('No status update received recently. Marking device as offline.', 'error');
+                updateConnectionStatus(false);
+            }, DEVICE_OFFLINE_TIMEOUT);
+        }
+
+        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            mainLoop();
-            setInterval(mainLoop, HEARTBEAT_INTERVAL);
-            setInterval(getDeviceStatus, FULL_STATUS_INTERVAL);
+            log('Dashboard initialized. Fetching initial status...');
+            
+            controlButtons.addEventListener('click', (e) => {
+                const button = e.target.closest('.btn');
+                if (button && button.dataset.command) {
+                    handleCommand(button.dataset.command);
+                }
+            });
+
+            // Start the main loop
+            getDeviceStatus(); // Initial fetch
+            deviceStatusTimer = setInterval(getDeviceStatus, STATUS_REFRESH_INTERVAL);
         });
     </script>
 </body>
